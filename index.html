@@ -1,0 +1,62 @@
+<html>
+<head>
+		<title>Crypto Adviser</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="stylesheet" href="static/assets/css/main.css" />
+    <style>
+		@font-face {
+   font-family: myFirstFont;
+   src: url(sansation_light.woff);
+}
+
+* {
+   font-family: myFirstFont;
+}
+    body, html {
+          height: 100%;
+      }
+      .hero-image {
+          background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('/static/crypto.jpg');
+          height: 70%;
+          background-position: center;
+          background-repeat: no-repeat;
+          background-size: cover;
+          position: relative;
+      }
+      .hero-text {
+          text-align: center;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+      }
+      </style>
+	</head>
+  <body>
+  <div class="hero-image">
+  <div class="hero-text">
+    <h1>Welcome to the currency advisor!</h1>
+    <p>Where we advise you on your currency investments</p>
+  </div>
+</div><center>
+<h1>What would you like to investigate?</h1> </center>
+<form method="POST">
+	<big> What cryptocurrency would you like information about? </big>
+		<input list="purpose">
+		<datalist id="purpose">
+		<option value="Day trading">
+		<option value="Short term trading (less than one year)">
+		<option value="Medium term trading (less than 10 years)">
+		<option value="Long term trading (greater than 10 years)">
+		<option value="Retirement Trading (maximum time)">
+		</datalist> <br>
+		<input type="submit" value="General Assessment of Cryptocurrencies" name="submit">
+		<br>
+		{% if session.ptable %}
+		{{ptable|safe}}
+		{% endif %}
+</form>
+</body>
+</html>
