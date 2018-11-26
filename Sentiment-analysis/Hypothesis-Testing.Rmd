@@ -1,0 +1,134 @@
+---
+title: "Data-X"
+author: "Katherine Zhang"
+date: "11/26/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE, warning=FALSE}
+library(ggplot2)
+library(DataComputing)
+library(dplyr)
+library(ggpubr)
+```
+
+Read the data into table.
+x1 - 1358 tweets data from Oct 20 to Oct 27.
+x2 - 2280 tweets data from Nov 1 to Nov 9.
+```{r}
+x1 <- read.csv("x1.txt", header = TRUE)
+x2 <- read.csv('x2.txt', header = TRUE)
+```
+
+We plot the QQ-normal plot and the gaussian distribution of x1's and x2's compound and text_len to check data normality. 
+```{r}
+qqnorm(x1$compound, main = 'Normal Q-Q Plot for compound sentiment score Oct 20 - 27');
+qqline(x1$compound, col = 'blue')
+hist(x1$compound)
+
+qqnorm(x2$compound, main = 'Normal Q-Q Plot for compound sentiment score Nov 1 to Nov 9');
+qqline(x2$compound, col = 'blue')
+hist(x2$compound)
+
+```
+
+For x1, we can see a nonlinear distribution with a spike of identical values: -1, 0, 1. For x2, we observe more positive identical values: 1, 2, 3. Thus, the assumption of data normality for both distribution is invalidate here. 
+
+
+```{r}
+qqnorm(x1$text_len, main = 'Normal Q-Q Plot for text_len Oct 20 - 27');
+qqline(x1$text_len, col = 'blue')
+hist(x1$text_len)
+
+qqnorm(x2$text_len, main = 'Normal Q-Q Plot for text_len Nov 1 to Nov 9');
+qqline(x2$text_len, col = 'blue')
+hist(x2$text_len)
+```
+Both of the distributions for tweets length is skewed to the left, so the assumption of data normality for both distribution is invalidate as well. 
+
+```{r}
+combine <- c(x1$compound, x2$compound)
+group <- c(rep('x1', 1358), rep('x2', 2280))
+d1 <- data.frame(combine, group)
+d1 %>% ggboxplot(x = 'group', y = 'combine', color = 'group')
+```
+
+
+
+Our hypothese for the sentiment compound score from Oct 20 to 27(noted as period x1) and from Nov 1 to Nov 9(noted as period x2) are stated as follows. 
+
+Null: There is no statistical significant difference between the distribution of compound score in x1 and x2 that they have the same overall distribution. Any deviation is due to chance alone. 
+
+Alternative: There exists a statistical significant difference between the distribution of compound score in x1 and x2
+
+We will perform nonparametric 2 sample test -- 'Rank Sum Test', also called Wilcox test in R,  since two samples are randomly and independently selected from the populations and their distributions are not normal. 
+```{r}
+wilcox.test(x1$compound, x2$compound, alternative = 'two.sided')
+wilcox.test(x1$text_len, x2$text_len, alternative = 'two.sided')
+```
+
+Given that p-values are extremely small in two cases, we reject the null and conclude that sentiment compound score and tweets length in two different period, Oct 20-27 and Nov 1-9 are statistically significantly different. 
+
+
+We can also construct a 95% confidence interval for sentiment compound score ad tweets length in these two period. 
+```{r}
+x1_compound_mean <- mean(x1$compound)
+x2_compound_mean <- mean(x2$compound)
+x1_compound_sd <- sd(x1$compound)
+x2_compound_sd <- sd(x2$compound)
+
+x1_margin_error <- qnorm(0.975) * x1_compound_mean/sqrt(1358)
+x2_margin_error <- qnorm(0.975) * x2_compound_mean/sqrt(2280)
+
+x1_compound_mean + x1_margin_error
+x1_compound_mean - x1_margin_error
+
+x2_compound_mean + x2_margin_error
+x2_compound_mean - x2_margin_error
+```
+95% CI for sentiment compound score in x1: [0.0696, 0.0774]
+
+95% CI for sentiment compound score in x2: [0.263, 0.243]
+
+We observe a sligtly more positive sentiment compound score in x2 period. 
+
+```{r}
+x1_len_mean <- mean(x1$text_len)
+x2_len_mean <- mean(x2$text_len)
+x1_len_sd <- sd(x1$text_len)
+x2_len_sd <- sd(x2$text_len)
+
+x1_margin_error <- qnorm(0.975) * x1_len_mean/sqrt(1358)
+x2_margin_error <- qnorm(0.975) * x2_len_mean/sqrt(2280)
+
+x1_len_mean + x1_margin_error
+x1_len_mean - x1_margin_error
+
+x2_len_mean + x2_margin_error
+x2_len_mean - x2_margin_error
+```
+
+95% CI for sentiment compound score in x1: [90.804, 101.006]
+
+95% CI for sentiment compound score in x2: [95.597, 103.781]
+
+
+Next we perform linear regression analysis. We regress sentiment compound score of each tweet on its length to see if there exists a linear relationship between explanatory variable(tweet length) and respnose variable(sentiment compound score of tweet).
+
+In period x1, since the p-value for x coefficient is smaller than 0.05 and the x coefficient is negative, we can conclude that there exists a negative relationship between tweet length and compound score of tweet that the linear regression model can be written as: y = -0.015x + 0.2169.
+```{r}
+summary(lm(compound ~ text_len, data = x1))
+```
+
+However in period x2, we observe a positive relationship between tweet length and compound score of tweet that the linear regression model can be written as: y = 0.01x - 0.803
+```{r}
+summary(lm(compound ~ text_len, data = x2))
+```
+
+
+
+
