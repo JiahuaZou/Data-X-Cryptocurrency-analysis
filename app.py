@@ -11,15 +11,16 @@ app = Flask(__name__, static_url_path='/static')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    reset()
     if request.method == 'POST':
         button = request.form['submit']
         if button == 'General Assessment of Cryptocurrencies':
             ptable = general_assessment()
             session['ptable'] = True
             return render_template('index.html', ptable=ptable.to_html(escape=False))
-        session['ptable'] = False
         return redirect('/')
-    return render_template('index.html')
+    names = all_names()
+    return render_template('index.html', names=names)
 
 if __name__ == '__main__':
     app.debug=True
