@@ -16,6 +16,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 import string
+import flask
+from flask import Response, request, send_file, Flask, render_template, session, redirect
 
 def general_assessment():
     website = requests.get('https://coinmarketcap.com/')
@@ -39,11 +41,11 @@ def all_names():
     return names
 
 def reset():
-    indicators = ['ptable']
+    indicators = ['ptable', 'rforest', 'time']
     for i in indicators:
         session[i] = False
 
-def jerry_learn(currency):
+def jerry_learn():
     key_file = 'keys.json'
     with open(key_file) as f:
         keys = json.load(f)
@@ -59,7 +61,7 @@ def jerry_learn(currency):
     text = []
     retweet_count = []
     i = 0
-    for tweet in tweepy.Cursor(api.search, q = '#' + currency, lang="en", since = start).items():
+    for tweet in tweepy.Cursor(api.search, q = '#bitcoin', lang="en", since = start).items():
         i += 1
         timestamp.append(tweet.created_at)
         retweet_count.append(tweet.retweet_count)
@@ -82,7 +84,7 @@ def jerry_learn(currency):
     del btcprice2['index']
     df2 = df.iloc[::-1].reset_index()
     del df2['index']
-    tcprice2['timestamp'] = btcprice2['timestamp'].apply(lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
+    btcprice2['timestamp'] = btcprice2['timestamp'].apply(lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
     def cal_direction(array):
         direction = np.ones(len(array))
         for i in range(len(array) - 1):
@@ -119,22 +121,107 @@ def jerry_learn(currency):
     rf = RandomForestClassifier(n_estimators=50, max_depth=20, n_jobs=-1)
     rf_model = rf.fit(x_train, y_train)
     y_pred = rf_model.predict(x_test)
+    label = None
     if sum(y_pred == 0) >= sum(y_pred == 1):
         label = 0
     else:
         lebel = 1
     precision, recall, fscore, support = score(y_test, y_pred, pos_label= label, average='binary')
-    print('Precision: {} / Recall: {} / Accuracy: {}'.format(round(precision, 3),
+    val1 = 'Precision: {} / Recall: {} / Accuracy: {}'.format(round(precision, 3),
                                                             round(recall, 3),
-                                                            round((y_pred==y_test).sum() / len(y_pred),3)))
+                                                            round((y_pred==y_test).sum() / len(y_pred),3))
     y_est = rf_model.predict(x_est)
     p1 = sum(y_est == 1)
     p0 = sum(y_est == 0)
+    val2 = None
     if p1 > p0:
-        print("the random forest model detects an upward trend based on conversations on tweet with a probability of " + str(p1/len(y_est)))
+        val2 = "The random forest model detects an upward trend based on conversations on tweet with a probability of " + str(p1/len(y_est))
     else:
-        print("the random forest model detects an downward trend based on conversations on tweet with a probability of " + str(p0/len(y_est)))
+        val2 = "The random forest model detects an downward trend based on conversations on tweet with a probability of " + str(p0/len(y_est))
+    return val1, val2
 
-def individual_coin_history(currency):
-    data = pd.read_csv(currency + '.csv')
-    print(data)
+def download_crypto(name):
+    templink = 'https://coinmarketcap.com/currencies/' + name + '/historical-data/'
+    website = requests.get(templink)
+    new_soup = bs.BeautifulSoup(website.content, features='html.parser')
+    name = re.findall('currencies/(.*?)/', templink)[0]
+    dates=[i.text for i in new_soup.find_all('td', class_='text-left')]
+    opens = new_soup.find_all("td")[1::7]
+    high = new_soup.find_all("td")[2::7]
+    low = new_soup.find_all("td")[3::7]
+    close = new_soup.find_all("td")[4::7]
+    volume = new_soup.find_all("td")[5::7]
+    market_cap = new_soup.find_all("td")[6::7]
+    tbl = pd.DataFrame()
+    tbl['name'] = [name for i in range(len(opens))]
+    tbl['date'] = dates
+    tbl['opens'] = [float(re.sub(',', '', i.text)) for i in opens]
+    tbl['high'] = [float(re.sub(',', '', i.text)) for i in high]
+    tbl['low'] = [float(re.sub(',', '', i.text)) for i in low]
+    tbl['close'] = [float(re.sub(',', '', i.text)) for i in close]
+    tbl['volume'] = [float(re.sub(',', '', i.text)) for i in volume]
+    try:
+        tbl['market_cap'] = [float(re.sub(',', '', i.text)) for i in market_cap]
+    except:
+        tbl['market_cap'] = [np.nan for i in market_cap]
+    return tbl
+
+def time_series():
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import datetime
+    import sklearn
+    plt.style.use('fivethirtyeight')
+    plt.rcParams["figure.figsize"] = (15,7)
+    from statsmodels.tsa.arima_model import ARIMA
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+    from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+    from statsmodels.tsa.stattools import adfuller
+    from statsmodels.tsa.seasonal import seasonal_decompose
+    from scipy import stats
+    import statsmodels.api as sm
+    from itertools import product
+    import warnings
+    warnings.filterwarnings('ignore')
+    df = pd.read_csv('bitcoin_ytd.csv')
+    df = df.iloc[: ,2:9]
+    btc_close = df['Close']
+    plot1 = btc_close.plot(lw=2.5, figsize=(12, 5))
+    rroll_d3 = btc_close.rolling(window=3).mean()
+    rroll_d7 = btc_close.rolling(window=7).mean()
+    rroll_d14 = btc_close.rolling(window=14).mean()
+    plt.figure(figsize=(14,7))
+    plt.plot(btc_close, alpha=0.8,label='Original observations')
+    plt.plot(rroll_d3, lw=3, alpha=0.8,label='Rolling mean (window 3)')
+    plt.plot(rroll_d7, lw=3, alpha=0.8,label='Rolling mean (window 7)')
+    plt.plot(rroll_d14, lw=3, alpha=0.8,label='Rolling mean (window 14)')
+    plt.title('BTC-USD Close Price 30days')
+    plt.tick_params(labelsize=12)
+    plt.legend(loc='upper left', fontsize=12)
+    plt.savefig("static/plot2.png")
+    short_window = 3
+    mid_window = 10
+    signals = pd.DataFrame(index=btc_close.index)
+    signals['signal'] = 0.0
+    roll_d3 = btc_close.rolling(window=short_window).mean()
+    roll_d10 = btc_close.rolling(window=mid_window).mean()
+    signals['short_mavg'] = roll_d3
+    signals['mid_mavg'] = roll_d10
+    signals['signal'][short_window:] = np.where(signals['short_mavg'][short_window:] > signals['mid_mavg'][short_window:], 1.0, 0.0)
+    signals['positions'] = signals['signal'].diff()
+    plt.figure(figsize=(14, 7))
+    plt.plot( btc_close, lw=3, alpha=0.8,label='Original observations')
+    plt.plot(roll_d3, lw=3, alpha=0.8,label='Rolling mean (window 3)')
+    plt.plot( roll_d10, lw=3, alpha=0.8,label='Rolling mean (window 10)')
+    plt.plot(signals.loc[signals.positions == 1.0].index,
+             signals.short_mavg[signals.positions == 1.0],
+             '^', markersize=10, color='r', label='buy')
+    plt.plot(signals.loc[signals.positions == -1.0].index,
+             signals.short_mavg[signals.positions == -1.0],
+             'v', markersize=10, color='k', label='sell')
+    plt.title('BTC-USD Adj Close Price (The Technical Approach)')
+    plt.tick_params(labelsize=12)
+    plt.legend(loc='upper left', fontsize=12)
+    plt.savefig("static/plot3.png")
+    fig = plot1.get_figure()
+    fig.savefig("static/plot1.png")

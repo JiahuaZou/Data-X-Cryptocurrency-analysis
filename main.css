@@ -1,7 +1,7 @@
 input{
     background-color: white;
     border: none;
-    color: white;
+    color: black;
     padding: 10px 20px;
     text-decoration: none;
     margin: 4px 2px;
@@ -13,9 +13,11 @@ input{
 input[type=submit] {
     background-color: #544f93;
     border: 1.5px solid purple;
+    color: white;
 }
 input:hover {
   background-color: black;
+  color: white;
 }
 p {
   font-family: "Times New Roman", Times, serif;

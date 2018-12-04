@@ -44,18 +44,28 @@
 <h1>What would you like to investigate?</h1> </center>
 <form method="POST">
 	<big> What cryptocurrency would you like information about? </big>
-		<input list="purpose">
+		<input list="purpose" name="purpose">
 		<datalist id="purpose">
-		<option value="Day trading">
-		<option value="Short term trading (less than one year)">
-		<option value="Medium term trading (less than 10 years)">
-		<option value="Long term trading (greater than 10 years)">
-		<option value="Retirement Trading (maximum time)">
-		</datalist> <br>
-		<input type="submit" value="General Assessment of Cryptocurrencies" name="submit">
+			{% for i in names %}
+			<option value="{{i}}">
+			{% endfor %}
+		</datalist> <input type="submit" value="Search" name="submit"><br>
+		<big>Would you like a </big><input type="submit" value="General Assessment of Cryptocurrencies" name="submit"> <br>
+		<big> Click here for a </big><input type="submit" value="Random Forest ML Analysis of Bitcoin" name="submit"> <br>
+		<big> Click here for a </big><input type="submit" value="Bitcoin Time Series Analysis" name="submit">
 		<br>
+		{% if session.rforest %}
+		{{print1|safe}}
+		{{print2|safe}}
+		{% endif %}
 		{% if session.ptable %}
 		{{ptable|safe}}
+		{% endif %}
+		{% if session.time %}
+		<center> <big> Bitcoin Closing Prices Over Time </big> </center>
+		<center> <img src={{ url1 }} alt="Chart" height="420" width="1000"> </center><br> <br>
+		<center> <img src={{ url2 }} alt="Chart" height="420" width="1000"> </center> <br> <br>
+		<center> <img src={{ url3 }} alt="Chart" height="420" width="1000"> </center>
 		{% endif %}
 </form>
 </body>
